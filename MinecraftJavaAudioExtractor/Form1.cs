@@ -22,12 +22,10 @@ namespace MinecraftJavaAudioExtractor
         {
             public string path;
             public string hash;
-            public string size;
-            public AudioFile(string hash, string path, string size)
+            public AudioFile(string hash, string path)
             {
                 this.hash = hash;
                 this.path = path;
-                this.size = size;
             }
         }
         AudioFile[] audioFiles;
@@ -65,59 +63,58 @@ namespace MinecraftJavaAudioExtractor
 
             string[] tempPaths = new string[entries.Length];
             string[] tempHashes = new string[entries.Length];
-            string[] tempSizes = new string[entries.Length];
             for (int i = 0; i < entries.Length; i++)
             {
                 tempPaths[i] = entries[i].Split(new string[] { "\"" }, StringSplitOptions.None)[1]; // get text after first '"' to get path (which is index 1)
 
                 tempHashes[i] = entries[i].Split(new string[] { "\"hash\":\"", "\"" }, StringSplitOptions.None)[3]; // get text after first '"hash":"' to get hash (which is index 3)
-                tempSizes[i] = entries[i].Split(new string[] { "\"size\":", "}" }, StringSplitOptions.None)[1]; // get text after first '"size":' to get size (which is index 1)
             }
-            for (int i = 0; i < entries.Length; i++)
+            for (int i = 1; i < entries.Length; i++)
             {
-                audioFiles[i] = new AudioFile(tempHashes[i], tempPaths[i], tempSizes[i]);
+                audioFiles[i] = new AudioFile(tempHashes[i], tempPaths[i]);
             }
 
             // Testing
             Console.WriteLine(audioFiles[1].path);
             Console.WriteLine(audioFiles[1].hash);
-            Console.WriteLine(audioFiles[1].size);
 
-            ExtractAudioFiles();
         }
 
-        private void ExtractAudioFiles()
+        private void SaveAudioFiles()
         {
-            string objectsPath = "C:\\Users\\" + Environment.UserName + "\\AppData\\Roaming\\.minecraft\\assets\\objects";
-            string outputPath = "C:\\Users\\" + Environment.UserName + "\\AppData\\Roaming\\.minecraft\\assets\\audio_files";
-            if (!Directory.Exists(outputPath))
+            Console.WriteLine("Saving audio files...");
+            try
             {
-                Directory.CreateDirectory(outputPath);
-            }
-            for (int i = 1; i < audioFiles.Length; i++)
-            {
-                string hash = audioFiles[i].hash;
-                string path = audioFiles[i].path;
-                string size = audioFiles[i].size;
-                string firstTwoChars = hash.Substring(0, 2);
-                string lastChars = hash.Substring(2);
-                string objectPath = objectsPath + "\\" + firstTwoChars + "\\" + hash;
-                string outputPathFile = outputPath + "\\" + path;
-                if (!Directory.Exists(outputPath + "\\" + path.Substring(0, path.LastIndexOf("\\"))))
+                for (int i = 1; i < audioFiles.Length; i++)
                 {
-                    Directory.CreateDirectory(outputPath + "\\" + path.Substring(0, path.LastIndexOf("\\")));
+                    string tempDir = saveToPath + "\\" + audioFiles[i].path.Remove(audioFiles[i].path.LastIndexOf('/'), audioFiles[i].path.Length - audioFiles[i].path.LastIndexOf('/'));
+                    if (!Directory.Exists(tempDir))
+                    {
+                        Directory.CreateDirectory(tempDir);
+                    }
+
+
+                    File.Copy(@"C:\Users\" + Environment.UserName + @"\AppData\Roaming\.minecraft\assets\objects\" + audioFiles[i].hash.Substring(0, 2) + "\\" + audioFiles[i].hash, saveToPath + "\\" + audioFiles[i].path, true);
                 }
-                File.Copy(objectPath, outputPathFile);
+
+
+
+                Console.WriteLine("Completed");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: " + ex.Message);
             }
         }
-
         private void saveToFolderButton_Click(object sender, EventArgs e)
         {
             folderBrowserDialog1.ShowDialog();
             if (folderBrowserDialog1.SelectedPath != "")
             {
                 saveToPath = folderBrowserDialog1.SelectedPath;
+                SaveAudioFiles();
             }
         }
+
     }
 }
