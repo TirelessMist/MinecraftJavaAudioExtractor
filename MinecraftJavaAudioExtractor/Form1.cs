@@ -18,19 +18,21 @@ namespace MinecraftJavaAudioExtractor
 {
     public partial class Form1 : Form
     {
-        public struct AudioFile
+        public struct AssetFile
         {
             public string path;
             public string hash;
-            public AudioFile(string hash, string path)
+            public AssetFile(string hash, string path)
             {
                 this.hash = hash;
                 this.path = path;
             }
         }
-        AudioFile[] audioFiles;
+        AssetFile[] assetFiles;
         string indexFilePath;
-        string saveToPath;
+        string saveFilePath;
+
+        bool isProgramClosing = false;
         public Form1()
         {
             if (Directory.Exists(@"C:\Users\" + Environment.UserName + @"\AppData\Roaming\.minecraft\assets\indexes"))
@@ -50,16 +52,20 @@ namespace MinecraftJavaAudioExtractor
             openFileDialog1.InitialDirectory = indexFilePath;
             openFileDialog1.ShowDialog();
             indexFilePath = openFileDialog1.FileName; // FileName returns entire path, not just the file name
-            Console.WriteLine("Index file path is set to: " + indexFilePath);
-            LoadIndexFile(indexFilePath);
+            if (indexFilePath != "")
+            {
+                indexFilePathTextBox.Text = indexFilePath;
+                LoadIndexFile(indexFilePath);
+                Console.WriteLine("Index file path is set to: " + indexFilePath);
+                LoadIndexFile(indexFilePath);
+            }
         }
 
         private void LoadIndexFile(string indexFilePath)
         {
             string contents = File.ReadAllText(indexFilePath).Replace(" ", ""); // entire file as string
-            contents = contents.Remove(0, contents.IndexOf("sounds.json")); // removes everything before "sounds.json" because they are references to languages, built-in packs, etc.
             string[] entries = contents.Split(new string[] { "}," }, StringSplitOptions.None); // split by "}," to get each audio file AudioFile data structure
-            audioFiles = new AudioFile[entries.Length];
+            assetFiles = new AssetFile[entries.Length];
 
             string[] tempPaths = new string[entries.Length];
             string[] tempHashes = new string[entries.Length];
@@ -71,13 +77,40 @@ namespace MinecraftJavaAudioExtractor
             }
             for (int i = 1; i < entries.Length; i++)
             {
-                audioFiles[i] = new AudioFile(tempHashes[i], tempPaths[i]);
+                assetFiles[i] = new AssetFile(tempHashes[i], tempPaths[i]);
             }
 
-            // Testing
-            Console.WriteLine(audioFiles[1].path);
-            Console.WriteLine(audioFiles[1].hash);
+            UpdateTreeView();
 
+            // Testing
+            Console.WriteLine(assetFiles[1].path);
+            Console.WriteLine(assetFiles[1].hash);
+
+        }
+
+        private void UpdateTreeView()
+        {
+            TreeNodeCollection nodes = assetsTreeView.Nodes;
+            assetsTreeView.Nodes.Clear();
+            for (int i = 1; i < assetFiles.Length; i++)
+            {
+                string[] path = assetFiles[i].path.Split('/');
+                for (int j = 0; j < path.Length; j++)
+                {
+                    if (j == 0)
+                    {
+                        nodes = assetsTreeView.Nodes;
+                    }
+                    else
+                    {
+                        nodes = nodes[nodes.Count - 1].Nodes;
+                    }
+                    if (nodes.Find(path[j], false).Length == 0)
+                    {
+                        nodes.Add(path[j], path[j]);
+                    }
+                }
+            }
         }
 
         private void SaveAudioFiles()
@@ -85,21 +118,19 @@ namespace MinecraftJavaAudioExtractor
             Console.WriteLine("Saving audio files...");
             try
             {
-                for (int i = 1; i < audioFiles.Length; i++)
+                for (int i = 1; i < assetFiles.Length; i++)
                 {
-                    string tempDir = saveToPath + "\\" + audioFiles[i].path.Remove(audioFiles[i].path.LastIndexOf('/'), audioFiles[i].path.Length - audioFiles[i].path.LastIndexOf('/'));
-                    if (!Directory.Exists(tempDir))
+                    string tempString = saveFilePath + "\\" + assetFiles[i].path.Remove(assetFiles[i].path.LastIndexOf('/'), assetFiles[i].path.Length - assetFiles[i].path.LastIndexOf('/'));
+                    if (!Directory.Exists(tempString))
                     {
-                        Directory.CreateDirectory(tempDir);
+                        Directory.CreateDirectory(tempString);
                     }
 
 
-                    File.Copy(@"C:\Users\" + Environment.UserName + @"\AppData\Roaming\.minecraft\assets\objects\" + audioFiles[i].hash.Substring(0, 2) + "\\" + audioFiles[i].hash, saveToPath + "\\" + audioFiles[i].path, true);
+                    File.Copy(@"C:\Users\" + Environment.UserName + @"\AppData\Roaming\.minecraft\assets\objects\" + assetFiles[i].hash.Substring(0, 2) + "\\" + assetFiles[i].hash, saveFilePath + "\\" + assetFiles[i].path, true);
                 }
-
-
-
                 Console.WriteLine("Completed");
+                Console.WriteLine("\nCopied Files: " + assetFiles.ToList());
             }
             catch (Exception ex)
             {
@@ -111,10 +142,90 @@ namespace MinecraftJavaAudioExtractor
             folderBrowserDialog1.ShowDialog();
             if (folderBrowserDialog1.SelectedPath != "")
             {
-                saveToPath = folderBrowserDialog1.SelectedPath;
-                SaveAudioFiles();
+                saveFilePath = folderBrowserDialog1.SelectedPath;
+                saveFilePathTextBox.Text = saveFilePath;
             }
         }
 
+
+        private void copyToFolderButton_Click(object sender, EventArgs e)
+        {
+            if (indexFilePath == null || saveFilePath == null)
+            {
+                MessageBox.Show("Please select an index file and a save folder.");
+                return;
+            }
+            if (assetFiles == null)
+            {
+                MessageBox.Show("Please load an index file.");
+                return;
+            }
+            try
+            {
+                SaveAudioFiles();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+            }
+        }
+
+        private void ValidateFilePath(object sender, CancelEventArgs e) // generic function to validate file paths
+        {
+            TextBox textBox = (TextBox)sender;
+            if (textBox.Text.Equals("") || !Directory.Exists(Directory.GetParent(textBox.Text).ToString()))
+            {
+                MessageBox.Show("Invalid path.");
+                e.Cancel = true;
+            }
+        }
+
+        private void indexFilePathTextBox_Validated(object sender, EventArgs e)
+        {
+            indexFilePath = indexFilePathTextBox.Text;
+        }
+
+        private void saveFilePathTextBox_Validated(object sender, EventArgs e)
+        {
+            saveFilePath = saveFilePathTextBox.Text;
+        }
+
+        private void treeView1_DragDrop(object sender, DragEventArgs e)
+        {
+            try
+            {
+                e.Effect = DragDropEffects.Copy;
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                indexFilePath = files[0];
+                LoadIndexFile(indexFilePath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+            }
+        }
+
+        private void treeView1_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            if (!e.Node.Checked)
+            {
+                selectAllCheckBox.Checked = false;
+            }
+            foreach (TreeNode node in e.Node.Nodes)
+            {
+                node.Checked = e.Node.Checked;
+            }
+        }
+
+        private void selectAllCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (selectAllCheckBox.Checked)
+            {
+                foreach (TreeNode node in assetsTreeView.Nodes)
+                {
+                    node.Checked = true;
+                }
+            }
+        }
     }
 }
