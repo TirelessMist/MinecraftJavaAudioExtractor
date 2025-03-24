@@ -1,6 +1,6 @@
 ﻿namespace MinecraftJavaAudioExtractor
 {
-    partial class Form1
+    partial class MinecraftJavaAssetsExtractor
     {
         /// <summary>
         /// Required designer variable.

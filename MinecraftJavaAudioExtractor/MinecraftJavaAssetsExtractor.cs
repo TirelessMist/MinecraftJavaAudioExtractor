@@ -16,7 +16,7 @@ using System.Windows.Forms;
 
 namespace MinecraftJavaAudioExtractor
 {
-    public partial class Form1 : Form
+    public partial class MinecraftJavaAssetsExtractor : Form
     {
         public struct AssetFile
         {
@@ -33,7 +33,7 @@ namespace MinecraftJavaAudioExtractor
         string saveFilePath;
 
         bool isProgramClosing = false;
-        public Form1()
+        public MinecraftJavaAssetsExtractor()
         {
             if (Directory.Exists(@"C:\Users\" + Environment.UserName + @"\AppData\Roaming\.minecraft\assets\indexes"))
             {
